@@ -29,7 +29,7 @@ see it on your profile **stub wall + year-in-review** → follow people → see 
   picker; the feed rail shows "upcoming near you" off your `home_city`.
 - **setlist.fm importer** (`src/lib/setlistfm.ts`) — ready; set `SETLISTFM_API_KEY` to
   pull the real catalogue. Upcoming events are a stand-in for a live events feed
-  (Bandsintown/Songkick) — same swap-in pattern when you want real listings.
+  (Ticketmaster Discovery API) — same swap-in pattern when you want real listings.
 
 ## Run it
 
@@ -57,7 +57,7 @@ npm run dev                 # http://localhost:3000
 | `npm run db:reset` | drop, re-migrate, re-seed |
 | `npm run db:studio` | Prisma Studio |
 | `npm run import:past` | import real shows+setlists from setlist.fm (needs `SETLISTFM_API_KEY`) |
-| `npm run import:upcoming` | import upcoming concerts from Bandsintown (needs `BANDSINTOWN_APP_ID`) |
+| `npm run import:upcoming` | import upcoming concerts from Ticketmaster (needs `TICKETMASTER_API_KEY`) |
 
 ## Layout
 

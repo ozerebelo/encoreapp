@@ -25,15 +25,18 @@ async function main() {
     console.error("✗ SETLISTFM_API_KEY is not set. Add it to .env or pass it inline.");
     process.exit(1);
   }
+  // Names from argv, else enrich every artist already in the catalogue.
   const names = process.argv.slice(2);
-  const artists = names.length ? names : DEFAULT_ARTISTS;
+  const artists = names.length
+    ? names
+    : (await prisma.artist.findMany({ orderBy: { name: "asc" }, select: { name: true } })).map((a) => a.name);
   console.log(`Importing ${artists.length} artist(s) from setlist.fm...`);
 
   let created = 0;
   let skipped = 0;
 
   for (const name of artists) {
-    const shows = await importArtistShows(name, 2).catch((e) => {
+    const shows = await importArtistShows(name, 1).catch((e) => {
       console.error(`  ! ${name}: ${e.message}`);
       return [];
     });
@@ -42,32 +45,49 @@ async function main() {
       continue;
     }
 
-    // Artist (keyed on MusicBrainz id), enriched with a Deezer photo.
+    // Resolve the artist: reuse an existing catalogue row (by mbid, then by
+    // name) so we enrich rather than duplicate; otherwise create it.
     const mbid = shows[0].artist.mbid;
     const img = await fetchArtistImages(name);
-    const artist = await prisma.artist.upsert({
-      where: { setlistfmMbid: mbid },
-      create: { name, slug: slugify(name), setlistfmMbid: mbid, imageUrl: img?.imageUrl ?? null },
-      update: { imageUrl: img?.imageUrl ?? undefined },
-    });
+    const existing =
+      (await prisma.artist.findUnique({ where: { setlistfmMbid: mbid } })) ??
+      (await prisma.artist.findFirst({ where: { name: { equals: name, mode: "insensitive" } } }));
+    const artist = existing
+      ? await prisma.artist.update({
+          where: { id: existing.id },
+          data: { setlistfmMbid: mbid, imageUrl: existing.imageUrl ?? img?.imageUrl ?? null },
+        })
+      : await prisma.artist.create({
+          data: { name, slug: slugify(name), setlistfmMbid: mbid, imageUrl: img?.imageUrl ?? null },
+        });
 
     for (const show of shows) {
       const exists = await prisma.performance.findUnique({ where: { setlistfmId: show.setlistfmId } });
       if (exists) { skipped++; continue; }
 
-      const venue = await prisma.venue.upsert({
-        where: { setlistfmId: show.venue.setlistfmId },
-        create: {
-          name: show.venue.name,
-          slug: slugify(show.venue.name),
-          city: show.venue.city,
-          countryCode: show.venue.countryCode,
-          latitude: show.venue.lat != null ? new Prisma.Decimal(show.venue.lat) : null,
-          longitude: show.venue.long != null ? new Prisma.Decimal(show.venue.long) : null,
-          setlistfmId: show.venue.setlistfmId,
-        },
-        update: {},
-      });
+      // Resolve venue by setlistfm id, then by (slug, city, country) to reuse
+      // existing/seeded rows; otherwise create. Avoids unique-constraint clashes.
+      const vSlug = slugify(show.venue.name);
+      let venue =
+        (await prisma.venue.findUnique({ where: { setlistfmId: show.venue.setlistfmId } })) ??
+        (await prisma.venue.findUnique({
+          where: { slug_city_countryCode: { slug: vSlug, city: show.venue.city, countryCode: show.venue.countryCode } },
+        }));
+      if (venue && !venue.setlistfmId) {
+        venue = await prisma.venue.update({ where: { id: venue.id }, data: { setlistfmId: show.venue.setlistfmId } });
+      } else if (!venue) {
+        venue = await prisma.venue.create({
+          data: {
+            name: show.venue.name,
+            slug: vSlug,
+            city: show.venue.city,
+            countryCode: show.venue.countryCode,
+            latitude: show.venue.lat != null ? new Prisma.Decimal(show.venue.lat) : null,
+            longitude: show.venue.long != null ? new Prisma.Decimal(show.venue.long) : null,
+            setlistfmId: show.venue.setlistfmId,
+          },
+        });
+      }
 
       const event = await prisma.event.create({
         data: {

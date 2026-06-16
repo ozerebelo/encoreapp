@@ -31,7 +31,13 @@
       "Bash(curl -s -o /dev/null -w \"%{http_code} %{content_type} %{size_download}b\\\\n\" \"http://localhost:3000/u/ava/wall/opengraph-image\")",
       "Bash(curl -s -o /dev/null \"http://localhost:3000/u/ava/wall\")",
       "Bash(curl -s --max-time 30 -o /tmp/og.png -w \"HTTP %{http_code} | %{content_type} | %{size_download} bytes\\\\n\" \"http://localhost:3000/u/ava/wall/opengraph-image\")",
-      "Read(//tmp/**)"
+      "Read(//tmp/**)",
+      "Bash(curl -s -o /dev/null -w 'HTTP %{http_code}\\\\n' https://encoreapp.vercel.app/)",
+      "Bash(curl -s -o /dev/null -w 'HTTP %{http_code}\\\\n' https://encoreapp.vercel.app/login)",
+      "Bash(curl -s -X POST https://encoreapp.vercel.app/api/auth/login -H 'Content-Type: application/json' -d '{\"email\":\"ava@example.com\",\"password\":\"password\"}' -w '\\\\n\\(HTTP %{http_code}\\)\\\\n')",
+      "Bash(curl -s https://encoreapp.vercel.app/u/ava)",
+      "Bash(curl -s --max-time 15 -H 'Accept: application/json' -H 'x-api-key: aImdkZFxm4obmDiThg1HCiCOtyVmtKsyUq0b' 'https://api.setlist.fm/rest/1.0/search/artists?artistName=Mitski&sort=relevance' -w '\\\\n\\(HTTP %{http_code}\\)\\\\n')",
+      "Bash(curl -s https://encoreapp.vercel.app/artist/mitski)"
     ]
   }
 }

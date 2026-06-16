@@ -12,9 +12,19 @@ export function hasSetlistFmKey(): boolean {
   return !!process.env.SETLISTFM_API_KEY;
 }
 
+// setlist.fm allows ~2 requests/sec; keep a global minimum gap between calls.
+let lastCall = 0;
+const MIN_GAP_MS = 600;
+async function throttle() {
+  const wait = MIN_GAP_MS - (Date.now() - lastCall);
+  if (wait > 0) await new Promise((r) => setTimeout(r, wait));
+  lastCall = Date.now();
+}
+
 async function call<T>(path: string): Promise<T> {
   const key = process.env.SETLISTFM_API_KEY;
   if (!key) throw new Error("SETLISTFM_API_KEY not set");
+  await throttle();
   const res = await fetch(`${BASE}${path}`, {
     headers: { Accept: "application/json", "x-api-key": key },
   });

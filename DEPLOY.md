@@ -38,7 +38,7 @@ git push -u origin main
 | `AUTH_SECRET` | a long random string (`openssl rand -hex 32`) |
 | `BLOB_READ_WRITE_TOKEN` | auto-set when you add a Blob store |
 | `SETLISTFM_API_KEY` | optional — real past catalogue |
-| `BANDSINTOWN_APP_ID` | optional — real upcoming concerts |
+| `TICKETMASTER_API_KEY` | optional — real upcoming concerts |
 
 ## 5. Run migrations + seed against the hosted DB
 
@@ -49,7 +49,7 @@ DATABASE_URL="<neon-url>" npx prisma migrate deploy
 DATABASE_URL="<neon-url>" npm run db:seed          # optional demo data
 # or import real data:
 DATABASE_URL="<neon-url>" SETLISTFM_API_KEY=xxx npm run import:past
-DATABASE_URL="<neon-url>" BANDSINTOWN_APP_ID=xxx npm run import:upcoming
+DATABASE_URL="<neon-url>" TICKETMASTER_API_KEY=xxx npm run import:upcoming
 ```
 
 > Use `prisma migrate deploy` (not `dev`) against production — it applies existing
