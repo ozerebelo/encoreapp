@@ -37,7 +37,8 @@
       "Bash(curl -s -X POST https://encoreapp.vercel.app/api/auth/login -H 'Content-Type: application/json' -d '{\"email\":\"ava@example.com\",\"password\":\"password\"}' -w '\\\\n\\(HTTP %{http_code}\\)\\\\n')",
       "Bash(curl -s https://encoreapp.vercel.app/u/ava)",
       "Bash(curl -s --max-time 15 -H 'Accept: application/json' -H 'x-api-key: aImdkZFxm4obmDiThg1HCiCOtyVmtKsyUq0b' 'https://api.setlist.fm/rest/1.0/search/artists?artistName=Mitski&sort=relevance' -w '\\\\n\\(HTTP %{http_code}\\)\\\\n')",
-      "Bash(curl -s https://encoreapp.vercel.app/artist/mitski)"
+      "Bash(curl -s https://encoreapp.vercel.app/artist/mitski)",
+      "Bash(curl -s https://encoreapp.vercel.app/upcoming)"
     ]
   }
 }
