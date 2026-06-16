@@ -10,3 +10,4 @@
 !/public/uploads/.gitkeep
 next-env.d.ts
 /prisma/migrations/dev.db*
+.vercel
