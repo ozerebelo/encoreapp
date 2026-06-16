@@ -1,0 +1,119 @@
+// setlist.fm API client. Requires SETLISTFM_API_KEY in the environment.
+// The catalogue (artist/venue/event/performance/setlist) is meant to be seeded
+// from here; until a key is present the app falls back to prisma/seed.ts.
+//
+// Docs: https://api.setlist.fm/docs/1.0/index.html
+
+import type { SetlistEntry } from "./format";
+
+const BASE = "https://api.setlist.fm/rest/1.0";
+
+export function hasSetlistFmKey(): boolean {
+  return !!process.env.SETLISTFM_API_KEY;
+}
+
+async function call<T>(path: string): Promise<T> {
+  const key = process.env.SETLISTFM_API_KEY;
+  if (!key) throw new Error("SETLISTFM_API_KEY not set");
+  const res = await fetch(`${BASE}${path}`, {
+    headers: { Accept: "application/json", "x-api-key": key },
+  });
+  if (!res.ok) throw new Error(`setlist.fm ${res.status} for ${path}`);
+  return res.json() as Promise<T>;
+}
+
+// --- Raw shapes (trimmed to what we use) ---
+type SfmSong = { name: string; encore?: number; info?: string };
+type SfmSet = { name?: string; encore?: number; song: SfmSong[] };
+type SfmVenue = {
+  id: string;
+  name: string;
+  city?: { name: string; country?: { code?: string }; coords?: { lat?: number; long?: number } };
+};
+type SfmSetlist = {
+  id: string;
+  eventDate: string; // dd-MM-yyyy
+  artist: { mbid: string; name: string };
+  venue: SfmVenue;
+  sets?: { set: SfmSet[] };
+  tour?: { name?: string };
+};
+
+export type ImportedShow = {
+  setlistfmId: string;
+  date: string; // ISO yyyy-mm-dd
+  artist: { mbid: string; name: string };
+  venue: {
+    setlistfmId: string;
+    name: string;
+    city: string;
+    countryCode: string;
+    lat: number | null;
+    long: number | null;
+  };
+  setlist: SetlistEntry[];
+};
+
+function toIso(ddMMyyyy: string): string {
+  const [d, m, y] = ddMMyyyy.split("-");
+  return `${y}-${m}-${d}`;
+}
+
+function flattenSets(sets?: { set: SfmSet[] }): SetlistEntry[] {
+  if (!sets?.set) return [];
+  const out: SetlistEntry[] = [];
+  for (const s of sets.set) {
+    const encore = !!s.encore;
+    for (const song of s.song) {
+      out.push({
+        song: song.name,
+        set_label: s.name ?? (encore ? "Encore" : "Main"),
+        is_encore: encore || !!song.encore,
+        note: song.info ?? null,
+      });
+    }
+  }
+  return out;
+}
+
+function normalize(s: SfmSetlist): ImportedShow | null {
+  if (!s.venue?.city) return null;
+  return {
+    setlistfmId: s.id,
+    date: toIso(s.eventDate),
+    artist: { mbid: s.artist.mbid, name: s.artist.name },
+    venue: {
+      setlistfmId: s.venue.id,
+      name: s.venue.name,
+      city: s.venue.city.name,
+      countryCode: s.venue.city.country?.code ?? "XX",
+      lat: s.venue.city.coords?.lat ?? null,
+      long: s.venue.city.coords?.long ?? null,
+    },
+    setlist: flattenSets(s.sets),
+  };
+}
+
+/** Recent setlists for an artist by name (resolves the MBID first). */
+export async function importArtistShows(
+  artistName: string,
+  pages = 1
+): Promise<ImportedShow[]> {
+  const search = await call<{ artist?: { mbid: string; name: string }[] }>(
+    `/search/artists?artistName=${encodeURIComponent(artistName)}&sort=relevance`
+  );
+  const artist = search.artist?.[0];
+  if (!artist) return [];
+
+  const shows: ImportedShow[] = [];
+  for (let p = 1; p <= pages; p++) {
+    const data = await call<{ setlist?: SfmSetlist[] }>(
+      `/artist/${artist.mbid}/setlists?p=${p}`
+    );
+    for (const s of data.setlist ?? []) {
+      const n = normalize(s);
+      if (n) shows.push(n);
+    }
+  }
+  return shows;
+}

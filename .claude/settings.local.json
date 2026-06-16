@@ -1,0 +1,31 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm --version)",
+      "Bash(docker --version)",
+      "Bash(psql --version)",
+      "Bash(brew install *)",
+      "Bash(echo \"BREW_DONE exit=$?\")",
+      "Bash(curl -s -c /tmp/cj2.txt -X POST http://localhost:3000/api/auth/signup -H 'Content-Type: application/json' -d '{\"displayName\":\"Test Zé\",\"handle\":\"zetest\",\"email\":\"ze.rebelo19@gmail.com\",\"password\":\"hunter2\",\"homeCity\":\"Lisbon\"}')",
+      "Bash(curl -s -X POST http://localhost:3000/api/auth/signup -H 'Content-Type: application/json' -d '{\"displayName\":\"X\",\"handle\":\"other\",\"email\":\"ze.rebelo19@gmail.com\",\"password\":\"hunter2\"}')",
+      "Bash(curl -s -X POST http://localhost:3000/api/logs -H 'Content-Type: application/json' -d '{\"performanceId\":\"x\"}')",
+      "Bash(curl -s http://localhost:3000/u/zetest)",
+      "mcp__Claude_Preview__preview_start",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:3000/u/ava)",
+      "Bash(curl -s --max-time 8 \"https://api.deezer.com/search/artist?q=Mitski&limit=1\")",
+      "Bash(curl -s --max-time 8 \"https://itunes.apple.com/search?term=Mitski&entity=musicArtist&limit=1\")",
+      "Bash(node -e \"require\\('dotenv'\\); \")",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:3000/login)",
+      "Bash(:)",
+      "Bash(curl -s -o /dev/null http://localhost:3000/)",
+      "Bash(curl -s -o /dev/null http://localhost:3000/u/ava)",
+      "Bash(curl -s -o /dev/null \"http://localhost:3000/festival/primavera-sound-2024\")",
+      "Bash(curl -sf -o /dev/null http://localhost:3000/)",
+      "Bash(break)",
+      "Bash(curl -s http://localhost:3000/)",
+      "Bash(curl -s -o /dev/null http://localhost:3000/festival/primavera-sound-2024)",
+      "Bash(curl -s -o /dev/null http://localhost:3000/feed)",
+      "Bash(curl -s -o /dev/null http://localhost:3000/upcoming)"
+    ]
+  }
+}

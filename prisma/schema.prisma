@@ -1,0 +1,323 @@
+// Live Music Cataloguing App — data model (v1)
+// Atomic unit: the performance. Emotional unit: the memory (log).
+// Table/column names are mapped to snake_case to match the source spec.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum EventType {
+  concert
+  festival
+}
+
+enum Standing {
+  pit
+  ga_floor
+  seated
+  balcony
+  other
+}
+
+enum VerificationState {
+  unverified
+  verified
+}
+
+enum PlanStatus {
+  interested // "want to go"
+  going      // has a ticket / committed
+}
+
+enum NotificationType {
+  new_follower
+  friend_going
+  log_liked
+  log_commented
+}
+
+// ---------------------------------------------------------------------------
+// Catalogue (seeded from setlist.fm; users attach to canonical rows)
+// ---------------------------------------------------------------------------
+
+model Artist {
+  id            String        @id @default(uuid()) @db.Uuid
+  name          String
+  slug          String        @unique
+  setlistfmMbid String?       @unique @map("setlistfm_mbid")
+  imageUrl      String?       @map("image_url")
+  createdAt     DateTime      @default(now()) @map("created_at")
+  updatedAt     DateTime      @updatedAt @map("updated_at")
+
+  performances  Performance[]
+
+  @@map("artist")
+}
+
+model Venue {
+  id          String   @id @default(uuid()) @db.Uuid
+  name        String
+  slug        String
+  city        String
+  countryCode String   @map("country_code") // ISO 3166-1 alpha-2
+  latitude    Decimal? @db.Decimal(9, 6)
+  longitude   Decimal? @db.Decimal(9, 6)
+  setlistfmId String?  @unique @map("setlistfm_id")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  events      Event[]
+
+  @@unique([slug, city, countryCode])
+  @@map("venue")
+}
+
+// Parent container. A standalone gig is an event with one performance;
+// a festival edition is an event with many. One code path for both.
+model Event {
+  id          String    @id @default(uuid()) @db.Uuid
+  type        EventType
+  name        String? // "Primavera Sound 2024"; null for plain gigs
+  slug        String    @unique
+  venueId     String?   @map("venue_id") @db.Uuid // festivals may span venues
+  startDate   DateTime  @map("start_date") @db.Date
+  endDate     DateTime? @map("end_date") @db.Date // multi-day festivals
+  setlistfmId String?   @map("setlistfm_id")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  venue                 Venue?               @relation(fields: [venueId], references: [id])
+  performances          Performance[]
+  festivalAttendances   FestivalAttendance[]
+
+  @@map("event")
+}
+
+// One artist's set, on a date, within an event.
+model Performance {
+  id              String   @id @default(uuid()) @db.Uuid
+  eventId         String   @map("event_id") @db.Uuid
+  artistId        String   @map("artist_id") @db.Uuid
+  performanceDate DateTime @map("performance_date") @db.Date
+  stage           String? // festival stage; null for single-stage gigs
+  isHeadliner     Boolean  @default(false) @map("is_headliner")
+  setlist         Json? // ordered [{ song, set_label, is_encore, note }]
+  setlistfmId     String?  @unique @map("setlistfm_id")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  event     Event      @relation(fields: [eventId], references: [id])
+  artist    Artist     @relation(fields: [artistId], references: [id])
+  logs      Log[]
+  listItems ListItem[]
+  plans     Plan[]
+
+  @@index([eventId])
+  @@index([artistId])
+  @@index([performanceDate])
+  @@map("performance")
+}
+
+// ---------------------------------------------------------------------------
+// User & social
+// ---------------------------------------------------------------------------
+
+model User {
+  id          String   @id @default(uuid()) @db.Uuid
+  handle      String   @unique
+  displayName String   @map("display_name")
+  email       String   @unique
+  passwordHash String  @map("password_hash")
+  avatarUrl   String?  @map("avatar_url")
+  homeCity    String?  @map("home_city")
+  bio         String?
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  logs                Log[]
+  lists               List[]
+  plans               Plan[]
+  likes               Like[]
+  comments            Comment[]
+  festivalAttendances FestivalAttendance[]
+  following           Follow[]             @relation("follower")
+  followers           Follow[]             @relation("followee")
+  notifications       Notification[]       @relation("recipient")
+  actorNotifications  Notification[]       @relation("actor")
+
+  @@map("user")
+}
+
+model Follow {
+  followerId String   @map("follower_id") @db.Uuid
+  followeeId String   @map("followee_id") @db.Uuid
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  follower User @relation("follower", fields: [followerId], references: [id], onDelete: Cascade)
+  followee User @relation("followee", fields: [followeeId], references: [id], onDelete: Cascade)
+
+  @@id([followerId, followeeId])
+  @@map("follow")
+}
+
+// ---------------------------------------------------------------------------
+// The log (the heart of the product) — a memory, not a review row
+// ---------------------------------------------------------------------------
+
+model Log {
+  id                 String            @id @default(uuid()) @db.Uuid
+  userId             String            @map("user_id") @db.Uuid
+  performanceId      String            @map("performance_id") @db.Uuid
+  rating             Decimal?          @db.Decimal(2, 1) // 0.5..5.0, nullable
+  review             String?
+  standing           Standing?
+  attendedWith       String?           @map("attended_with") // free text v1
+  stubImageUrl       String?           @map("stub_image_url")
+  isFavorite         Boolean           @default(false) @map("is_favorite")
+  verificationState  VerificationState @default(unverified) @map("verification_state")
+  verificationSource String?           @map("verification_source")
+  loggedDate         DateTime          @map("logged_date") @db.Date
+  createdAt          DateTime          @default(now()) @map("created_at")
+  updatedAt          DateTime          @updatedAt @map("updated_at")
+
+  user        User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  performance Performance @relation(fields: [performanceId], references: [id])
+  photos      LogPhoto[]
+  likes       Like[]
+  comments    Comment[]
+
+  @@unique([userId, performanceId])
+  @@index([userId])
+  @@index([performanceId])
+  @@map("log")
+}
+
+model Like {
+  userId    String   @map("user_id") @db.Uuid
+  logId     String   @map("log_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  log  Log  @relation(fields: [logId], references: [id], onDelete: Cascade)
+
+  @@id([userId, logId])
+  @@index([logId])
+  @@map("like")
+}
+
+model Comment {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  logId     String   @map("log_id") @db.Uuid
+  body      String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  log  Log  @relation(fields: [logId], references: [id], onDelete: Cascade)
+
+  @@index([logId])
+  @@map("comment")
+}
+
+// In-app notification for the recipient; actor is who triggered it.
+model Notification {
+  id            String           @id @default(uuid()) @db.Uuid
+  userId        String           @map("user_id") @db.Uuid // recipient
+  actorId       String           @map("actor_id") @db.Uuid
+  type          NotificationType
+  performanceId String?          @map("performance_id") @db.Uuid
+  logId         String?          @map("log_id") @db.Uuid
+  read          Boolean          @default(false)
+  createdAt     DateTime         @default(now()) @map("created_at")
+
+  user  User @relation("recipient", fields: [userId], references: [id], onDelete: Cascade)
+  actor User @relation("actor", fields: [actorId], references: [id], onDelete: Cascade)
+
+  @@index([userId, read])
+  @@map("notification")
+}
+
+model LogPhoto {
+  id       String @id @default(uuid()) @db.Uuid
+  logId    String @map("log_id") @db.Uuid
+  url      String
+  position Int    @default(0)
+
+  log Log @relation(fields: [logId], references: [id], onDelete: Cascade)
+
+  @@map("log_photo")
+}
+
+// A user "did" a festival edition (the trip/wristband/overall take),
+// distinct from their per-set logs which point at performances inside it.
+model FestivalAttendance {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  eventId   String   @map("event_id") @db.Uuid // must be type='festival'
+  rating    Decimal? @db.Decimal(2, 1)
+  review    String?
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  event Event @relation(fields: [eventId], references: [id])
+
+  @@unique([userId, eventId])
+  @@map("festival_attendance")
+}
+
+// A user's intent toward a (usually upcoming) performance: want-to-go or going.
+// The forward-looking counterpart of a log, which records a show already seen.
+model Plan {
+  id            String     @id @default(uuid()) @db.Uuid
+  userId        String     @map("user_id") @db.Uuid
+  performanceId String     @map("performance_id") @db.Uuid
+  status        PlanStatus @default(interested)
+  createdAt     DateTime   @default(now()) @map("created_at")
+  updatedAt     DateTime   @updatedAt @map("updated_at")
+
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  performance Performance @relation(fields: [performanceId], references: [id])
+
+  @@unique([userId, performanceId])
+  @@index([userId])
+  @@index([performanceId])
+  @@map("plan")
+}
+
+// ---------------------------------------------------------------------------
+// Lists & curation
+// ---------------------------------------------------------------------------
+
+model List {
+  id          String     @id @default(uuid()) @db.Uuid
+  userId      String     @map("user_id") @db.Uuid
+  title       String
+  description String?
+  isRanked    Boolean    @default(false) @map("is_ranked")
+  createdAt   DateTime   @default(now()) @map("created_at")
+  updatedAt   DateTime   @updatedAt @map("updated_at")
+
+  user  User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items ListItem[]
+
+  @@map("list")
+}
+
+model ListItem {
+  listId        String  @map("list_id") @db.Uuid
+  performanceId String  @map("performance_id") @db.Uuid
+  position      Int     @default(0)
+  note          String?
+
+  list        List        @relation(fields: [listId], references: [id], onDelete: Cascade)
+  performance Performance @relation(fields: [performanceId], references: [id])
+
+  @@id([listId, performanceId])
+  @@map("list_item")
+}
