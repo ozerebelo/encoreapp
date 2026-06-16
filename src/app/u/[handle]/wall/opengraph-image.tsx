@@ -48,18 +48,18 @@ export default async function Image({ params }: { params: Promise<{ handle: stri
           fontFamily: "sans-serif",
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: 16, fontSize: 30, fontWeight: 800, color: "#c8a2ff" }}>
-          ◉ Encore
+        <div style={{ display: "flex", alignItems: "center", fontSize: 30, fontWeight: 800, letterSpacing: 2, color: "#c8a2ff" }}>
+          ENCORE
         </div>
-        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          <div style={{ fontSize: 34, color: "#a8a1c6" }}>{name}&apos;s {topYear} in live music</div>
-          <div style={{ display: "flex", gap: 80, marginTop: 20 }}>
+        <div style={{ display: "flex", flexDirection: "column" }}>
+          <div style={{ display: "flex", fontSize: 34, color: "#a8a1c6" }}>{`${name}'s ${topYear} in live music`}</div>
+          <div style={{ display: "flex", gap: 80, marginTop: 26 }}>
             <Stat num={String(yearLogs.length)} label="shows" />
             <Stat num={topArtist} label="most seen" />
-            <Stat num={`★ ${avg}`} label="avg rating" />
+            <Stat num={avg} label="avg rating" />
           </div>
         </div>
-        <div style={{ fontSize: 24, color: "#6f6992" }}>Track every gig at encore.app</div>
+        <div style={{ display: "flex", fontSize: 24, color: "#6f6992" }}>Track every gig at encore.app</div>
       </div>
     ),
     { ...size }

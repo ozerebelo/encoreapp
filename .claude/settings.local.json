@@ -25,7 +25,13 @@
       "Bash(curl -s http://localhost:3000/)",
       "Bash(curl -s -o /dev/null http://localhost:3000/festival/primavera-sound-2024)",
       "Bash(curl -s -o /dev/null http://localhost:3000/feed)",
-      "Bash(curl -s -o /dev/null http://localhost:3000/upcoming)"
+      "Bash(curl -s -o /dev/null http://localhost:3000/upcoming)",
+      "Bash(curl -s \"http://localhost:3000/api/search?q=mit\")",
+      "Bash(curl -s \"http://localhost:3000/api/search?q=ava\")",
+      "Bash(curl -s -o /dev/null -w \"%{http_code} %{content_type} %{size_download}b\\\\n\" \"http://localhost:3000/u/ava/wall/opengraph-image\")",
+      "Bash(curl -s -o /dev/null \"http://localhost:3000/u/ava/wall\")",
+      "Bash(curl -s --max-time 30 -o /tmp/og.png -w \"HTTP %{http_code} | %{content_type} | %{size_download} bytes\\\\n\" \"http://localhost:3000/u/ava/wall/opengraph-image\")",
+      "Read(//tmp/**)"
     ]
   }
 }
