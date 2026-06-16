@@ -38,7 +38,10 @@
       "Bash(curl -s https://encoreapp.vercel.app/u/ava)",
       "Bash(curl -s --max-time 15 -H 'Accept: application/json' -H 'x-api-key: aImdkZFxm4obmDiThg1HCiCOtyVmtKsyUq0b' 'https://api.setlist.fm/rest/1.0/search/artists?artistName=Mitski&sort=relevance' -w '\\\\n\\(HTTP %{http_code}\\)\\\\n')",
       "Bash(curl -s https://encoreapp.vercel.app/artist/mitski)",
-      "Bash(curl -s https://encoreapp.vercel.app/upcoming)"
+      "Bash(curl -s https://encoreapp.vercel.app/upcoming)",
+      "Bash(curl -s -H 'Accept: application/json' -H 'x-api-key: aImdkZFxm4obmDiThg1HCiCOtyVmtKsyUq0b' 'https://api.setlist.fm/rest/1.0/artist/2a942f9d-fd6f-4e1b-9d72-4b2f29a55 a3/setlists?p=1')",
+      "Bash(curl -s -H \"Accept: application/json\" -H \"x-api-key: aImdkZFxm4obmDiThg1HCiCOtyVmtKsyUq0b\" \"https://api.setlist.fm/rest/1.0/search/artists?artistName=Charli%20XCX&sort=relevance\")",
+      "Bash(python3 -c ' *)"
     ]
   }
 }
