@@ -28,6 +28,7 @@ export default async function ShowPage({ params }: { params: Promise<{ id: strin
         include: {
           user: { select: { handle: true, displayName: true, avatarUrl: true } },
           photos: true,
+          companions: { include: { user: { select: { handle: true, displayName: true } } } },
           _count: { select: { likes: true } },
           comments: {
             orderBy: { createdAt: "asc" },
@@ -205,6 +206,9 @@ export default async function ShowPage({ params }: { params: Promise<{ id: strin
                 {log.standing && STANDING_LABEL[log.standing] && (
                   <span className="pill">{STANDING_LABEL[log.standing]}</span>
                 )}
+                {log.companions.map((c) => (
+                  <Link key={c.user.handle} href={`/u/${c.user.handle}`} className="pill">with @{c.user.handle}</Link>
+                ))}
                 {log.attendedWith && <span className="faint" style={{ fontSize: 13 }}>with {log.attendedWith}</span>}
               </div>
               {log.review && <p className="muted" style={{ margin: "8px 0 0" }}>{log.review}</p>}

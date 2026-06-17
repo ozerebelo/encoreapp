@@ -120,6 +120,10 @@ model Performance {
   listItems ListItem[]
   plans     Plan[]
 
+  // Natural key: one artist plays one event on a given date exactly once.
+  // Makes importer re-runs idempotent (createMany skipDuplicates can finally
+  // catch performance dupes, which fresh client UUIDs otherwise defeat).
+  @@unique([eventId, artistId, performanceDate])
   @@index([eventId])
   @@index([artistId])
   @@index([performanceDate])
@@ -148,6 +152,7 @@ model User {
   plans               Plan[]
   likes               Like[]
   comments            Comment[]
+  companionIn         LogCompanion[]       @relation("companionIn")
   festivalAttendances FestivalAttendance[]
   following           Follow[]             @relation("follower")
   followers           Follow[]             @relation("followee")
@@ -194,11 +199,26 @@ model Log {
   photos      LogPhoto[]
   likes       Like[]
   comments    Comment[]
+  companions  LogCompanion[]
 
   @@unique([userId, performanceId])
   @@index([userId])
   @@index([performanceId])
   @@map("log")
+}
+
+// A platform user tagged as having been at the show with the log's author.
+// Free-text `attendedWith` on Log stays for companions who aren't on Encore.
+model LogCompanion {
+  logId  String @map("log_id") @db.Uuid
+  userId String @map("user_id") @db.Uuid
+
+  log  Log  @relation(fields: [logId], references: [id], onDelete: Cascade)
+  user User @relation("companionIn", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([logId, userId])
+  @@index([userId])
+  @@map("log_companion")
 }
 
 model Like {

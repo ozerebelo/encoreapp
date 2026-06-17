@@ -60,6 +60,9 @@ function ActivityRow({ a }: { a: Activity }) {
             <div className="row" style={{ marginTop: 8, gap: 10 }}>
               <Stars rating={a.rating} />
               {a.standing && STANDING_LABEL[a.standing] && <span className="pill">{STANDING_LABEL[a.standing]}</span>}
+              {a.companions.map((c) => (
+                <Link key={c.handle} href={`/u/${c.handle}`} className="pill">with @{c.handle}</Link>
+              ))}
               {a.attendedWith && <span className="pill">with {a.attendedWith}</span>}
               {a.isFavorite && <span style={{ color: "var(--accent-2)" }}>♥</span>}
             </div>

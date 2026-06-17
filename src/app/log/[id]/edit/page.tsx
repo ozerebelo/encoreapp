@@ -14,6 +14,7 @@ export default async function EditLogPage({ params }: { params: Promise<{ id: st
     where: { id },
     include: {
       photos: { orderBy: { position: "asc" } },
+      companions: { include: { user: { select: { handle: true, displayName: true, avatarUrl: true } } } },
       performance: { include: { artist: { select: { name: true } }, event: { select: { name: true, venue: { select: { name: true } } } } } },
     },
   });
@@ -38,6 +39,7 @@ export default async function EditLogPage({ params }: { params: Promise<{ id: st
           isFavorite: log.isFavorite,
           stubImageUrl: log.stubImageUrl,
           photos: log.photos.map((p) => p.url),
+          companions: log.companions.map((c) => c.user),
         }}
       />
     </main>

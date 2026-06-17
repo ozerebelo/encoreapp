@@ -6,6 +6,7 @@ import type { SetlistEntry } from "@/lib/format";
 import { ArtistImage } from "@/components/ArtistImage";
 import { ImageUploader } from "@/components/ImageUploader";
 import { StarPicker } from "@/components/StarPicker";
+import { CompanionPicker, type CompanionUser } from "@/components/CompanionPicker";
 
 type Artist = { id: string; name: string; imageUrl: string | null };
 type Performance = {
@@ -49,6 +50,7 @@ export function LogForm({ initialPerformanceId }: { initialPerformanceId: string
   const [rating, setRating] = useState(0);
   const [standing, setStanding] = useState("");
   const [attendedWith, setAttendedWith] = useState("");
+  const [companions, setCompanions] = useState<CompanionUser[]>([]);
   const [stubImages, setStubImages] = useState<string[]>([]);
   const [photos, setPhotos] = useState<string[]>([]);
   const [review, setReview] = useState("");
@@ -145,6 +147,7 @@ export function LogForm({ initialPerformanceId }: { initialPerformanceId: string
         rating: rating || null,
         standing: standing || null,
         attendedWith,
+        companions: companions.map((c) => c.handle),
         stubImageUrl: stubImages[0] ?? null,
         photos,
         review,
@@ -284,17 +287,22 @@ export function LogForm({ initialPerformanceId }: { initialPerformanceId: string
               <StarPicker value={rating} onChange={setRating} />
             </div>
 
-            <div className="row" style={{ gap: 16 }}>
-              <div className="field" style={{ flex: 1, minWidth: 180 }}>
-                <label>Where you stood</label>
-                <select value={standing} onChange={(e) => setStanding(e.target.value)}>
-                  {STANDINGS.map((s) => <option key={s.v} value={s.v}>{s.label}</option>)}
-                </select>
-              </div>
-              <div className="field" style={{ flex: 1, minWidth: 180 }}>
-                <label>Who you went with</label>
-                <input value={attendedWith} onChange={(e) => setAttendedWith(e.target.value)} placeholder="e.g. Sam" />
-              </div>
+            <div className="field">
+              <label>Where you stood</label>
+              <select value={standing} onChange={(e) => setStanding(e.target.value)} style={{ maxWidth: 240 }}>
+                {STANDINGS.map((s) => <option key={s.v} value={s.v}>{s.label}</option>)}
+              </select>
+            </div>
+
+            <div className="field">
+              <label>Who you went with</label>
+              <CompanionPicker value={companions} onChange={setCompanions} />
+              <input
+                value={attendedWith}
+                onChange={(e) => setAttendedWith(e.target.value)}
+                placeholder="…and anyone not on Encore (e.g. Mum, the gang)"
+                style={{ marginTop: 8 }}
+              />
             </div>
 
             <ImageUploader label="Ticket stub" value={stubImages} onChange={setStubImages} />

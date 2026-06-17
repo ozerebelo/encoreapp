@@ -18,6 +18,7 @@ export type Activity =
       review: string | null;
       standing: string | null;
       attendedWith: string | null;
+      companions: { handle: string; displayName: string }[];
       isFavorite: boolean;
       photos: string[];
     }
@@ -52,6 +53,7 @@ export async function getActivity(userIds: string[], limit = 30): Promise<Activi
       include: {
         user: { select: { handle: true, displayName: true, avatarUrl: true } },
         photos: { orderBy: { position: "asc" }, take: 3 },
+        companions: { include: { user: { select: { handle: true, displayName: true } } } },
         performance: {
           include: {
             artist: { select: { name: true, imageUrl: true } },
@@ -107,6 +109,7 @@ export async function getActivity(userIds: string[], limit = 30): Promise<Activi
       review: l.review,
       standing: l.standing,
       attendedWith: l.attendedWith,
+      companions: l.companions.map((c) => c.user),
       isFavorite: l.isFavorite,
       photos: l.photos.map((p) => p.url),
     });

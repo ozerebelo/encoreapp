@@ -32,8 +32,19 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     ? body.photos.filter((u: unknown) => typeof u === "string" && u).slice(0, 8)
     : [];
 
+  const companionHandles: string[] = Array.isArray(body.companions)
+    ? body.companions.filter((h: unknown) => typeof h === "string").slice(0, 20)
+    : [];
+  const companionIds = companionHandles.length
+    ? (await prisma.user.findMany({
+        where: { handle: { in: companionHandles }, id: { not: user.id } },
+        select: { id: true },
+      })).map((u) => u.id)
+    : [];
+
   await prisma.$transaction([
     prisma.logPhoto.deleteMany({ where: { logId: id } }),
+    prisma.logCompanion.deleteMany({ where: { logId: id } }),
     prisma.log.update({
       where: { id },
       data: {
@@ -44,6 +55,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
         stubImageUrl: body.stubImageUrl ? String(body.stubImageUrl).trim() : null,
         isFavorite: Boolean(body.isFavorite),
         photos: photos.length ? { create: photos.map((url, i) => ({ url, position: i })) } : undefined,
+        companions: companionIds.length ? { create: companionIds.map((userId) => ({ userId })) } : undefined,
       },
     }),
   ]);

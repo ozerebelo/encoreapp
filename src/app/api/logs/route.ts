@@ -47,6 +47,18 @@ export async function POST(req: Request) {
     ? body.photos.filter((u: unknown) => typeof u === "string" && u).slice(0, 8)
     : [];
 
+  // Tagged companions are real users, identified by handle. Resolve to ids,
+  // dropping anything unknown or the author themselves.
+  const companionHandles: string[] = Array.isArray(body.companions)
+    ? body.companions.filter((h: unknown) => typeof h === "string").slice(0, 20)
+    : [];
+  const companionIds = companionHandles.length
+    ? (await prisma.user.findMany({
+        where: { handle: { in: companionHandles }, id: { not: user.id } },
+        select: { id: true },
+      })).map((u) => u.id)
+    : [];
+
   try {
     const log = await prisma.log.create({
       data: {
@@ -61,6 +73,9 @@ export async function POST(req: Request) {
         loggedDate,
         photos: photos.length
           ? { create: photos.map((url, i) => ({ url, position: i })) }
+          : undefined,
+        companions: companionIds.length
+          ? { create: companionIds.map((userId) => ({ userId })) }
           : undefined,
       },
     });

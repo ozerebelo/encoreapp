@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { ImageUploader } from "@/components/ImageUploader";
 import { StarPicker } from "@/components/StarPicker";
+import { CompanionPicker, type CompanionUser } from "@/components/CompanionPicker";
 
 const STANDINGS = [
   { v: "", label: "—" },
@@ -24,12 +25,14 @@ export function EditLogForm({
   initial: {
     rating: number; standing: string; attendedWith: string; review: string;
     isFavorite: boolean; stubImageUrl: string | null; photos: string[];
+    companions: CompanionUser[];
   };
 }) {
   const router = useRouter();
   const [rating, setRating] = useState(initial.rating);
   const [standing, setStanding] = useState(initial.standing);
   const [attendedWith, setAttendedWith] = useState(initial.attendedWith);
+  const [companions, setCompanions] = useState<CompanionUser[]>(initial.companions);
   const [stubImages, setStubImages] = useState<string[]>(initial.stubImageUrl ? [initial.stubImageUrl] : []);
   const [photos, setPhotos] = useState<string[]>(initial.photos);
   const [review, setReview] = useState(initial.review);
@@ -46,6 +49,7 @@ export function EditLogForm({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         rating: rating || null, standing: standing || null, attendedWith,
+        companions: companions.map((c) => c.handle),
         stubImageUrl: stubImages[0] ?? null, photos, review, isFavorite,
       }),
     });
@@ -76,10 +80,16 @@ export function EditLogForm({
             {STANDINGS.map((s) => <option key={s.v} value={s.v}>{s.label}</option>)}
           </select>
         </div>
-        <div className="field" style={{ flex: 1, minWidth: 180 }}>
-          <label>Who you went with</label>
-          <input value={attendedWith} onChange={(e) => setAttendedWith(e.target.value)} />
-        </div>
+      </div>
+      <div className="field">
+        <label>Who you went with</label>
+        <CompanionPicker value={companions} onChange={setCompanions} />
+        <input
+          value={attendedWith}
+          onChange={(e) => setAttendedWith(e.target.value)}
+          placeholder="…and anyone not on Encore"
+          style={{ marginTop: 8 }}
+        />
       </div>
       <ImageUploader label="Ticket stub" value={stubImages} onChange={setStubImages} />
       <ImageUploader label="Photos from the night" multiple value={photos} onChange={setPhotos} />
