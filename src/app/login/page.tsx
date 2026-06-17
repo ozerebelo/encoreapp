@@ -49,7 +49,10 @@ export default function LoginPage() {
             />
           </div>
           <div className="field">
-            <label>Password</label>
+            <div className="spread">
+              <label>Password</label>
+              <Link href="/forgot" className="faint" style={{ fontSize: 13 }}>Forgot?</Link>
+            </div>
             <input
               type="password"
               value={password}

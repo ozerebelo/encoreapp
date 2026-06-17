@@ -13,10 +13,15 @@ import { searchSetlists, hasSetlistFmKey, type ImportedShow } from "../src/lib/s
 import { slugify } from "../src/lib/slug";
 
 const prisma = new PrismaClient();
-const COUNTRIES = ["PT", "ES", "GB", "IE", "FR", "DE", "NL", "US"];
+// Major music markets worldwide (override with HIST_COUNTRIES=PT,ES,...).
+const DEFAULT_COUNTRIES = [
+  "GB", "IE", "FR", "DE", "NL", "BE", "ES", "PT", "IT", "AT", "CH", "SE", "NO", "DK", "FI",
+  "PL", "CZ", "GR", "HU", "RO", "US", "CA", "MX", "BR", "AR", "CL", "AU", "NZ", "JP", "KR", "ZA",
+];
+const COUNTRIES = (process.env.HIST_COUNTRIES?.split(",").map((c) => c.trim()).filter(Boolean)) ?? DEFAULT_COUNTRIES;
 const PAGES = Number(process.argv[2]) || 6;
-const START_YEAR = Number(process.argv[3]) || 2015;
-const END_YEAR = new Date().getUTCFullYear();
+const START_YEAR = Number(process.argv[3]) || 2000;
+const END_YEAR = Number(process.argv[4]) || new Date().getUTCFullYear();
 
 async function chunkCreate<T>(rows: T[], create: (b: T[]) => Promise<unknown>) {
   for (let i = 0; i < rows.length; i += 1000) await create(rows.slice(i, i + 1000));

@@ -51,11 +51,13 @@ model Artist {
   slug          String        @unique
   setlistfmMbid String?       @unique @map("setlistfm_mbid")
   imageUrl      String?       @map("image_url")
+  setlistfmSyncedAt DateTime? @map("setlistfm_synced_at") // last on-demand history pull
   createdAt     DateTime      @default(now()) @map("created_at")
   updatedAt     DateTime      @updatedAt @map("updated_at")
 
   performances  Performance[]
 
+  @@index([name])
   @@map("artist")
 }
 
@@ -74,6 +76,7 @@ model Venue {
   events      Event[]
 
   @@unique([slug, city, countryCode])
+  @@index([city])
   @@map("venue")
 }
 
@@ -120,6 +123,7 @@ model Performance {
   @@index([eventId])
   @@index([artistId])
   @@index([performanceDate])
+  @@index([artistId, performanceDate])
   @@map("performance")
 }
 

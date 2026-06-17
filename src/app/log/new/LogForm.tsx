@@ -42,6 +42,9 @@ export function LogForm({ initialPerformanceId }: { initialPerformanceId: string
   const [performances, setPerformances] = useState<Performance[]>([]);
   const [perf, setPerf] = useState<Performance | null>(null);
   const [loadingPerfs, setLoadingPerfs] = useState(false);
+  const [years, setYears] = useState<number[]>([]);
+  const [perfYear, setPerfYear] = useState("");
+  const [perfQuery, setPerfQuery] = useState("");
 
   const [rating, setRating] = useState(0);
   const [standing, setStanding] = useState("");
@@ -88,17 +91,35 @@ export function LogForm({ initialPerformanceId }: { initialPerformanceId: string
     return () => document.removeEventListener("mousedown", onClick);
   }, []);
 
+  async function loadPerformances(artistId: string, year: string, q: string) {
+    setLoadingPerfs(true);
+    const params = new URLSearchParams({ artistId });
+    if (year) params.set("year", year);
+    if (q) params.set("q", q);
+    const res = await fetch(`/api/performances?${params}`);
+    const data = await res.json();
+    setPerformances(data.performances ?? []);
+    if (Array.isArray(data.years)) setYears(data.years);
+    setLoadingPerfs(false);
+  }
+
   async function selectArtist(a: Artist) {
     setArtist(a);
     setQuery(a.name);
     setOpen(false);
     setPerf(null);
-    setLoadingPerfs(true);
-    const res = await fetch(`/api/performances?artistId=${a.id}`);
-    const data = await res.json();
-    setPerformances(data.performances ?? []);
-    setLoadingPerfs(false);
+    setPerfYear("");
+    setPerfQuery("");
+    await loadPerformances(a.id, "", "");
   }
+
+  // Refetch the picker when the year/venue filter changes (debounced).
+  useEffect(() => {
+    if (!artist) return;
+    const t = setTimeout(() => loadPerformances(artist.id, perfYear, perfQuery), 200);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [perfYear, perfQuery]);
 
   function resetArtist() {
     setArtist(null);
@@ -181,6 +202,23 @@ export function LogForm({ initialPerformanceId }: { initialPerformanceId: string
       {artist && (
         <div className="card" style={{ marginBottom: 16 }}>
           <label style={{ fontSize: 13, fontWeight: 600, color: "var(--text-dim)" }}>2 · Which show?</label>
+
+          {/* Filters — for artists with lots of shows */}
+          {(years.length > 1 || performances.length >= 10 || perfQuery || perfYear) && (
+            <div className="row" style={{ gap: 8, marginTop: 10 }}>
+              <select value={perfYear} onChange={(e) => setPerfYear(e.target.value)} style={{ width: "auto" }}>
+                <option value="">All years</option>
+                {years.map((y) => <option key={y} value={y}>{y}</option>)}
+              </select>
+              <input
+                value={perfQuery}
+                onChange={(e) => setPerfQuery(e.target.value)}
+                placeholder="Filter by venue or city…"
+                style={{ flex: 1, minWidth: 160 }}
+              />
+            </div>
+          )}
+
           {loadingPerfs ? (
             <p className="muted">Finding {artist.name}&apos;s performances…</p>
           ) : performances.length === 0 ? (

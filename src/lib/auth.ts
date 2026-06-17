@@ -64,3 +64,27 @@ export async function requireUser() {
   if (!user) throw new Error("UNAUTHORIZED");
   return user;
 }
+
+// --- Password reset (stateless): token embeds a fingerprint of the current
+// password hash, so it stops working the moment the password changes. ---
+export async function signResetToken(userId: string, passwordHash: string): Promise<string> {
+  return new SignJWT({ uid: userId, fp: passwordHash.slice(0, 16) })
+    .setProtectedHeader({ alg: "HS256" })
+    .setIssuedAt()
+    .setExpirationTime("1h")
+    .sign(secret);
+}
+
+export async function verifyResetToken(token: string): Promise<string | null> {
+  try {
+    const { payload } = await jwtVerify(token, secret);
+    const uid = payload.uid as string | undefined;
+    const fp = payload.fp as string | undefined;
+    if (!uid || !fp) return null;
+    const user = await prisma.user.findUnique({ where: { id: uid } });
+    if (!user || user.passwordHash.slice(0, 16) !== fp) return null;
+    return uid;
+  } catch {
+    return null;
+  }
+}
