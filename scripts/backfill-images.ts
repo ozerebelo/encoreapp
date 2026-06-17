@@ -11,17 +11,16 @@ const prisma = new PrismaClient();
 const LIMIT = Number(process.argv[2]) || 1500;
 
 async function main() {
-  const today = new Date(); today.setUTCHours(0, 0, 0, 0);
-  // Artists with no image, ordered by upcoming-show count.
+  // Artists with no image, ordered by total number of shows (most likely seen).
   const rows = await prisma.$queryRawUnsafe<{ id: string; name: string }[]>(
     `SELECT a.id, a.name
      FROM artist a
-     LEFT JOIN performance p ON p.artist_id = a.id AND p.performance_date >= $1
+     LEFT JOIN performance p ON p.artist_id = a.id
      WHERE a.image_url IS NULL
      GROUP BY a.id, a.name
      ORDER BY count(p.id) DESC
-     LIMIT $2`,
-    today, LIMIT
+     LIMIT $1`,
+    LIMIT
   );
   console.log(`Backfilling images for up to ${rows.length} artists...`);
 

@@ -15,6 +15,7 @@
     "import:past": "tsx scripts/import-setlistfm.ts",
     "import:upcoming": "tsx scripts/import-upcoming.ts",
     "import:catalogue": "tsx scripts/import-catalogue.ts",
+    "import:history": "tsx scripts/import-history.ts",
     "backfill:images": "tsx scripts/backfill-images.ts"
   },
   "prisma": {

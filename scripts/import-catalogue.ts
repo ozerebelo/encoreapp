@@ -70,11 +70,14 @@ async function main() {
         scanned++;
         const date = new Date(ev.date);
         const vId = venueId(ev.venue);
+        // Concerts are keyed by headliner+venue+date (NOT TM event id) so the same
+        // show listed under multiple ticket types collapses into one event.
+        const concertSlug = slugify(`${ev.artistNames[0]}-${ev.venue.name}-${ev.date}`);
         const eId = (ev.isFestival && ev.festivalName)
           ? eventId(slugify(festivalKey(ev.festivalName, ev.venue.city, ev.date.slice(0, 4))),
               () => ({ type: "festival", name: ev.festivalName!, slug: slugify(festivalKey(ev.festivalName!, ev.venue.city, ev.date.slice(0, 4))), venueId: vId, startDate: date }))
-          : eventId(`tm-${ev.tmId}`.toLowerCase(),
-              () => ({ type: "concert", name: ev.name, slug: `tm-${ev.tmId}`.toLowerCase(), venueId: vId, startDate: date }));
+          : eventId(concertSlug,
+              () => ({ type: "concert", name: ev.name, slug: concertSlug, venueId: vId, startDate: date }));
         ev.artistNames.forEach((name, i) => {
           const aId = artistId(name);
           const k = `${aId}|${eId}`;

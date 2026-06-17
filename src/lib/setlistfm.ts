@@ -24,12 +24,20 @@ async function throttle() {
 async function call<T>(path: string): Promise<T> {
   const key = process.env.SETLISTFM_API_KEY;
   if (!key) throw new Error("SETLISTFM_API_KEY not set");
-  await throttle();
-  const res = await fetch(`${BASE}${path}`, {
-    headers: { Accept: "application/json", "x-api-key": key },
-  });
-  if (!res.ok) throw new Error(`setlist.fm ${res.status} for ${path}`);
-  return res.json() as Promise<T>;
+  for (let attempt = 0; attempt < 5; attempt++) {
+    await throttle();
+    const res = await fetch(`${BASE}${path}`, {
+      headers: { Accept: "application/json", "x-api-key": key },
+    });
+    if (res.status === 429) {
+      await new Promise((r) => setTimeout(r, 1500 * (attempt + 1)));
+      continue;
+    }
+    if (res.status === 404) return { setlist: [] } as T; // empty segment
+    if (!res.ok) throw new Error(`setlist.fm ${res.status} for ${path}`);
+    return res.json() as Promise<T>;
+  }
+  throw new Error(`setlist.fm 429 (rate limited) for ${path}`);
 }
 
 // --- Raw shapes (trimmed to what we use) ---
@@ -126,4 +134,23 @@ export async function importArtistShows(
     }
   }
   return shows;
+}
+
+/**
+ * Search historical setlists by arbitrary filters (e.g. countryCode + year) —
+ * the path to a large backlog that's not tied to a single artist.
+ */
+export async function searchSetlists(
+  query: string,
+  page: number
+): Promise<{ shows: ImportedShow[]; total: number; itemsPerPage: number }> {
+  const data = await call<{ setlist?: SfmSetlist[]; total?: number; itemsPerPage?: number }>(
+    `/search/setlists?${query}&p=${page}`
+  );
+  const shows: ImportedShow[] = [];
+  for (const s of data.setlist ?? []) {
+    const n = normalize(s);
+    if (n) shows.push(n);
+  }
+  return { shows, total: data.total ?? 0, itemsPerPage: data.itemsPerPage ?? 20 };
 }
