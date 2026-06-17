@@ -848,3 +848,16 @@ textarea {
     align-items: flex-start;
   }
 }
+
+/* ---- Loading skeletons (instant feedback on navigation) ---- */
+@keyframes shimmer {
+  100% { background-position: -200% 0; }
+}
+.skeleton {
+  border-radius: 10px;
+  background: linear-gradient(90deg, var(--bg-elev) 25%, var(--bg-elev-2) 37%, var(--bg-elev) 63%);
+  background-size: 200% 100%;
+  animation: shimmer 1.3s ease-in-out infinite;
+}
+.sk-line { height: 14px; margin: 8px 0; }
+.sk-row { height: 64px; margin-bottom: 12px; }
