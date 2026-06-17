@@ -29,10 +29,8 @@ export function NavBar({
         <div className="nav-links">
           {user ? (
             <>
-              <Link href="/feed">Feed</Link>
+              <Link href="/feed">Home</Link>
               <Link href="/upcoming">Upcoming</Link>
-              <Link href="/lists">Lists</Link>
-              <Link href="/discover">Discover</Link>
               <Link href={`/u/${user.handle}`}>Profile</Link>
               <Link href="/notifications" className="nav-bell" aria-label="Notifications">
                 🔔

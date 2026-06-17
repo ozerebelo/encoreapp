@@ -4,7 +4,6 @@ import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 import { getActivity, type Activity } from "@/lib/activity";
 import { formatDate, timeAgo, untilLabel, recencyBucket } from "@/lib/format";
-import { upcomingShows } from "@/lib/upcoming";
 import { Stars } from "@/components/Stars";
 import { Avatar } from "@/components/Avatar";
 import { ArtistImage } from "@/components/ArtistImage";
@@ -99,9 +98,8 @@ export default async function FeedPage() {
   const followingIds = following.map((f) => f.followeeId);
   const authorIds = [me.id, ...followingIds];
 
-  const [activity, nearby, suggestions, popular] = await Promise.all([
+  const [activity, suggestions, popular] = await Promise.all([
     getActivity(authorIds, 30),
-    upcomingShows(me.homeCity ?? null, 5),
     prisma.user.findMany({
       where: { id: { notIn: authorIds } },
       orderBy: { createdAt: "asc" },
@@ -158,28 +156,10 @@ export default async function FeedPage() {
           )}
         </div>
 
-        {/* Right rail */}
+        {/* Right rail — social + discovery (upcoming lives in its own tab) */}
         <aside className="rail">
           <div className="rail-card">
-            <h3>Upcoming near {me.homeCity ?? "you"}</h3>
-            {nearby.length === 0 ? (
-              <p className="faint" style={{ fontSize: 13, margin: 0 }}>Nothing catalogued nearby yet.</p>
-            ) : (
-              nearby.map((s) => (
-                <Link key={s.id} href={`/show/${s.id}`} className="rail-row">
-                  <div className="rail-thumb"><ArtistImage name={s.artist} src={s.artistImage} /></div>
-                  <div style={{ minWidth: 0 }}>
-                    <div style={{ fontWeight: 600, fontSize: 14, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{s.artist}</div>
-                    <div className="faint" style={{ fontSize: 12 }}>{s.venue} · {untilLabel(s.date)}</div>
-                  </div>
-                </Link>
-              ))
-            )}
-            <Link href="/upcoming" style={{ color: "var(--accent)", fontSize: 13, display: "inline-block", marginTop: 8 }}>See all upcoming →</Link>
-          </div>
-
-          <div className="rail-card">
-            <h3>Popular this week</h3>
+            <h3>Most logged</h3>
             {popular.map((s) => (
               <Link key={s.id} href={`/show/${s.id}`} className="rail-row">
                 <div className="rail-thumb"><ArtistImage name={s.artist.name} src={s.artist.imageUrl} /></div>

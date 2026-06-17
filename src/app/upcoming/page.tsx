@@ -72,7 +72,7 @@ export default async function UpcomingPage({
               name={s.artist}
               image={s.artistImage}
               caption={s.artist}
-              subcaption={`${s.venue ?? ""} · ${untilLabel(s.date)}`}
+              subcaption={`${s.festival ? `🎪 ${s.festival}` : s.venue ?? ""} · ${untilLabel(s.date)}`}
             />
           ))}
         </div>

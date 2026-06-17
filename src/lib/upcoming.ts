@@ -25,6 +25,7 @@ export type UpcomingShow = {
   artistImage: string | null;
   venue: string | null;
   city: string | null;
+  festival: string | null; // festival name when this set is part of one
   goingCount: number;
 };
 
@@ -111,7 +112,7 @@ export async function upcomingShows(city: string | null, limit = 8): Promise<Upc
     take: limit,
     include: {
       artist: { select: { name: true, slug: true, imageUrl: true } },
-      event: { select: { venue: { select: { name: true, city: true } } } },
+      event: { select: { type: true, name: true, venue: { select: { name: true, city: true } } } },
       _count: { select: { plans: true } },
     },
   });
@@ -123,6 +124,7 @@ export async function upcomingShows(city: string | null, limit = 8): Promise<Upc
     artistImage: p.artist.imageUrl,
     venue: p.event.venue?.name ?? null,
     city: p.event.venue?.city ?? null,
+    festival: p.event.type === "festival" ? p.event.name : null,
     goingCount: p._count.plans,
   }));
 }
