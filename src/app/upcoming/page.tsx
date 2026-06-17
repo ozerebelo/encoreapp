@@ -1,10 +1,11 @@
 import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
-import { citiesWithUpcoming, upcomingShows } from "@/lib/upcoming";
+import { citiesWithUpcoming, upcomingShows, defaultUpcomingCity } from "@/lib/upcoming";
 import { formatDate, untilLabel } from "@/lib/format";
 import { Poster } from "@/components/Poster";
 import { CityPicker } from "@/components/CityPicker";
 import { UseMyLocation } from "@/components/UseMyLocation";
+import { AutoLocate } from "@/components/AutoLocate";
 
 export default async function UpcomingPage({
   searchParams,
@@ -14,8 +15,9 @@ export default async function UpcomingPage({
   const me = await getCurrentUser();
   const { city: cityParam } = await searchParams;
   const cities = await citiesWithUpcoming();
-  const defaultCity = (me?.homeCity && cities.includes(me.homeCity)) ? me.homeCity : cities[0] ?? "London";
-  const city = cityParam && cities.includes(cityParam) ? cityParam : defaultCity;
+  const city = cityParam && cities.includes(cityParam)
+    ? cityParam
+    : await defaultUpcomingCity(me?.homeCity ?? null, cities);
 
   const shows = await upcomingShows(city, 24);
 
@@ -30,6 +32,7 @@ export default async function UpcomingPage({
 
   return (
     <main className="container">
+      <AutoLocate hasCityParam={!!cityParam} />
       <h1 style={{ fontSize: 28, marginTop: 24 }}>Upcoming</h1>
 
       {me && myPlans.length > 0 && (
@@ -54,7 +57,7 @@ export default async function UpcomingPage({
       <div className="label">
         <span>In {city}</span>
         <span className="row" style={{ gap: 8 }}>
-          <UseMyLocation cities={cities} />
+          <UseMyLocation />
           <CityPicker city={city} cities={cities} />
         </span>
       </div>

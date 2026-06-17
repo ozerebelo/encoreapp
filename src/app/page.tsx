@@ -6,7 +6,8 @@ import { ArtistImage } from "@/components/ArtistImage";
 import { Poster } from "@/components/Poster";
 import { CityPicker } from "@/components/CityPicker";
 import { UseMyLocation } from "@/components/UseMyLocation";
-import { citiesWithUpcoming, upcomingShows } from "@/lib/upcoming";
+import { AutoLocate } from "@/components/AutoLocate";
+import { citiesWithUpcoming, upcomingShows, defaultUpcomingCity } from "@/lib/upcoming";
 import { formatDate } from "@/lib/format";
 
 export default async function Home({
@@ -19,7 +20,9 @@ export default async function Home({
 
   const { city: cityParam } = await searchParams;
   const cities = await citiesWithUpcoming();
-  const city = cityParam && cities.includes(cityParam) ? cityParam : cities[0] ?? "London";
+  const city = cityParam && cities.includes(cityParam)
+    ? cityParam
+    : await defaultUpcomingCity(null, cities);
   const [highlights, artists] = await Promise.all([
     upcomingShows(city, 8),
     prisma.artist.findMany({
@@ -32,6 +35,7 @@ export default async function Home({
 
   return (
     <main className="container">
+      <AutoLocate hasCityParam={!!cityParam} />
       <section className="hero">
         <span className="pill">◉ a home for the shows you&apos;ve been to — and the ones ahead</span>
         <h1>Every gig. Every stub. Every memory.</h1>
@@ -52,7 +56,7 @@ export default async function Home({
       <div className="label">
         <span>Upcoming highlights in {city}</span>
         <span className="row" style={{ gap: 8 }}>
-          <UseMyLocation cities={cities} />
+          <UseMyLocation />
           <CityPicker city={city} cities={cities} />
         </span>
       </div>

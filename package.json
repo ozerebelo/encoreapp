@@ -13,7 +13,9 @@
     "db:reset": "prisma migrate reset --force",
     "db:studio": "prisma studio",
     "import:past": "tsx scripts/import-setlistfm.ts",
-    "import:upcoming": "tsx scripts/import-upcoming.ts"
+    "import:upcoming": "tsx scripts/import-upcoming.ts",
+    "import:catalogue": "tsx scripts/import-catalogue.ts",
+    "backfill:images": "tsx scripts/backfill-images.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

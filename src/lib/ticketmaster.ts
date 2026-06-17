@@ -74,6 +74,77 @@ export function festivalKey(festivalName: string, city: string, year: string): s
   return `${base}-${city}-${year}`;
 }
 
+const NON_ARTIST_RE = /\b(parking|vip|package|camping|shuttle|premium|hospitality|garage|locker|wristband|payment plan|hotel|add[- ]?on|upgrade|lounge|suite)\b/i;
+
+/** Music acts on an event's bill (headliner first), filtering out venues/add-ons. */
+function musicArtistNames(e: TmEvent): string[] {
+  const venueName = (e._embedded?.venues?.[0]?.name ?? "").toLowerCase();
+  const out: string[] = [];
+  for (const a of e._embedded?.attractions ?? []) {
+    const name = a.name?.trim();
+    if (!name) continue;
+    const seg = (a as { classifications?: TmClassification[] }).classifications?.[0]?.segment?.name;
+    if (seg && seg !== "Music") continue;
+    if (name.toLowerCase() === venueName) continue;
+    if (NON_ARTIST_RE.test(name)) continue;
+    if (!out.includes(name)) out.push(name);
+  }
+  return out;
+}
+
+export type CatalogueEvent = {
+  tmId: string;
+  date: string; // yyyy-mm-dd
+  name: string;
+  isFestival: boolean;
+  festivalName: string | null;
+  artistNames: string[];
+  venue: { name: string; city: string; countryCode: string; lat: number | null; long: number | null };
+};
+
+/** One page of all upcoming music events in a country, parsed for the catalogue. */
+export async function fetchMusicEvents(
+  countryCode: string,
+  page: number,
+  size = 100
+): Promise<{ events: CatalogueEvent[]; totalPages: number }> {
+  const key = process.env.TICKETMASTER_API_KEY;
+  if (!key) throw new Error("TICKETMASTER_API_KEY not set");
+  await throttle();
+  const now = new Date().toISOString().replace(/\.\d+Z$/, "Z");
+  const url =
+    `${BASE}/events.json?apikey=${key}&classificationName=Music&countryCode=${countryCode}` +
+    `&startDateTime=${now}&size=${size}&page=${page}&sort=date,asc`;
+  const res = await fetch(url, { headers: { Accept: "application/json" } });
+  if (!res.ok) throw new Error(`Ticketmaster ${res.status} (country=${countryCode} page=${page})`);
+  const json = (await res.json()) as { page?: { totalPages?: number }; _embedded?: { events?: TmEvent[] } };
+  const totalPages = json.page?.totalPages ?? 0;
+  const events: CatalogueEvent[] = [];
+  for (const e of json._embedded?.events ?? []) {
+    const v = e._embedded?.venues?.[0];
+    const date = e.dates?.start?.localDate;
+    const artistNames = musicArtistNames(e);
+    if (!v?.name || !v.city?.name || !date || artistNames.length === 0) continue;
+    const festival = isFestivalEvent(e);
+    events.push({
+      tmId: e.id,
+      date,
+      name: e.name,
+      isFestival: festival,
+      festivalName: festival ? cleanFestivalName(e.name) : null,
+      artistNames,
+      venue: {
+        name: v.name,
+        city: v.city.name,
+        countryCode: v.country?.countryCode ?? countryCode,
+        lat: v.location?.latitude ? Number(v.location.latitude) : null,
+        long: v.location?.longitude ? Number(v.location.longitude) : null,
+      },
+    });
+  }
+  return { events, totalPages };
+}
+
 let lastCall = 0;
 async function throttle() {
   const wait = 250 - (Date.now() - lastCall); // ~4 req/sec, under the 5/sec cap
