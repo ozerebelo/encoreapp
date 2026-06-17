@@ -102,7 +102,7 @@ export async function getActivity(userIds: string[], limit = 30): Promise<Activi
       artistImage: l.performance.artist.imageUrl,
       venue: l.performance.event.venue?.name ?? l.performance.event.name ?? null,
       city: l.performance.event.venue?.city ?? null,
-      date: l.loggedDate,
+      date: l.performance.performanceDate,
       rating: toNumber(l.rating),
       review: l.review,
       standing: l.standing,

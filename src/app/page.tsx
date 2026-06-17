@@ -62,7 +62,7 @@ export default async function Home({
           <Link href="/login" className="btn btn-ghost">Log in</Link>
         </div>
         <p className="faint" style={{ marginTop: 18, fontSize: 13 }}>
-          Try the demo — <strong>ava@example.com</strong> / <strong>password</strong>
+          Try the demo — <strong>test@encore.test</strong> / <strong>password</strong>
         </p>
       </section>
 

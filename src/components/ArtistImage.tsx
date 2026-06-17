@@ -1,4 +1,6 @@
 // Renders artist photography with a graceful initials fallback.
+import Image from "next/image";
+
 const GRADIENTS = [
   "linear-gradient(135deg,#7b3fa0,#3a2566)",
   "linear-gradient(135deg,#b0476a,#3a2540)",
@@ -18,14 +20,19 @@ export function ArtistImage({
   name,
   src,
   className,
+  sizes = "(max-width: 700px) 50vw, 220px",
 }: {
   name: string;
   src?: string | null;
   className?: string;
+  sizes?: string;
 }) {
   if (src) {
-    // eslint-disable-next-line @next/next/no-img-element
-    return <img src={src} alt={name} loading="lazy" className={className} />;
+    // fill within the (position:relative, overflow:hidden) container the
+    // caller provides — .poster / .feed-thumb / .rail-thumb / .note-thumb.
+    return (
+      <Image src={src} alt={name} fill sizes={sizes} className={className} style={{ objectFit: "cover" }} />
+    );
   }
   return (
     <div className="poster-fallback" style={{ background: gradientFor(name) }}>

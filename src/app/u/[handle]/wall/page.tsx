@@ -23,7 +23,8 @@ export default async function WallPage({ params }: { params: Promise<{ handle: s
     where: { handle },
     include: {
       logs: {
-        orderBy: { loggedDate: "desc" },
+        orderBy: { loggedDate: "desc" }, // loggedDate == show date (set from performanceDate)
+        take: 240,
         include: {
           performance: {
             include: {
@@ -37,9 +38,9 @@ export default async function WallPage({ params }: { params: Promise<{ handle: s
   });
   if (!user) notFound();
 
-  const years = [...new Set(user.logs.map((l) => yearOf(l.loggedDate)))].sort((a, b) => b - a);
+  const years = [...new Set(user.logs.map((l) => yearOf(l.performance.performanceDate)))].sort((a, b) => b - a);
   const topYear = years[0];
-  const yearLogs = user.logs.filter((l) => yearOf(l.loggedDate) === topYear);
+  const yearLogs = user.logs.filter((l) => yearOf(l.performance.performanceDate) === topYear);
   const counts = new Map<string, number>();
   for (const l of yearLogs) counts.set(l.performance.artist.name, (counts.get(l.performance.artist.name) ?? 0) + 1);
   const topArtist = [...counts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? "—";
@@ -54,7 +55,7 @@ export default async function WallPage({ params }: { params: Promise<{ handle: s
     artistImage: l.performance.artist.imageUrl,
     venue: l.performance.event.venue?.name ?? l.performance.event.name ?? "—",
     city: l.performance.event.venue?.city ?? null,
-    date: l.loggedDate,
+    date: l.performance.performanceDate,
     rating: toNumber(l.rating),
     isFavorite: l.isFavorite,
     stubImageUrl: l.stubImageUrl,

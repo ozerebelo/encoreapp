@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { formatDate } from "@/lib/format";
 import { gradientFor } from "./ArtistImage";
 
@@ -20,8 +21,7 @@ export function StubCard({ stub }: { stub: StubData }) {
   const inner = (
     <>
       {bg ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img className="stub-img" src={bg} alt={stub.artist} loading="lazy" />
+        <Image className="stub-img" src={bg} alt={stub.artist} fill sizes="(max-width: 700px) 100vw, 260px" style={{ objectFit: "cover" }} />
       ) : (
         <div className="stub-img" style={{ background: gradientFor(stub.artist) }} />
       )}

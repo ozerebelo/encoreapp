@@ -634,6 +634,7 @@ textarea {
   padding: 7px 0;
 }
 .rail-thumb {
+  position: relative;
   width: 42px;
   height: 42px;
   border-radius: 8px;
@@ -670,6 +671,7 @@ textarea {
   border-color: var(--border);
 }
 .feed-thumb {
+  position: relative;
   width: 64px;
   height: 64px;
   border-radius: 10px;
@@ -804,6 +806,7 @@ textarea {
   transform: translateY(-2px);
 }
 .note-thumb {
+  position: relative;
   width: 58px;
   height: 58px;
   border-radius: 9px;

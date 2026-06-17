@@ -1,8 +1,9 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
-import { toNumber, yearOf, formatDate, untilLabel } from "@/lib/format";
+import { toNumber, formatDate, untilLabel } from "@/lib/format";
 import { StubCard, type StubData } from "@/components/StubCard";
 import { Poster } from "@/components/Poster";
 import { ArtistImage } from "@/components/ArtistImage";
@@ -10,10 +11,24 @@ import { Avatar } from "@/components/Avatar";
 import { FollowButton } from "@/components/FollowButton";
 import { Stars } from "@/components/Stars";
 
+// How many stubs to render inline on the profile. The full set lives on /wall.
+const WALL_LIMIT = 60;
+
+// Shared shape for the bounded log queries below.
+const logInclude = {
+  performance: {
+    include: {
+      artist: { select: { name: true, slug: true, imageUrl: true } },
+      event: { select: { name: true, venue: { select: { name: true, city: true } } } },
+    },
+  },
+} satisfies Prisma.LogInclude;
+
 export default async function ProfilePage({ params }: { params: Promise<{ handle: string }> }) {
   const { handle } = await params;
   const me = await getCurrentUser();
 
+  // Header + lightweight relations only — NOT the full log history.
   const user = await prisma.user.findUnique({
     where: { handle },
     include: {
@@ -34,17 +49,6 @@ export default async function ProfilePage({ params }: { params: Promise<{ handle
           },
         },
       },
-      logs: {
-        orderBy: { loggedDate: "desc" },
-        include: {
-          performance: {
-            include: {
-              artist: { select: { name: true, slug: true, imageUrl: true } },
-              event: { select: { name: true, venue: { select: { name: true, city: true } } } },
-            },
-          },
-        },
-      },
     },
   });
   if (!user) notFound();
@@ -57,25 +61,83 @@ export default async function ProfilePage({ params }: { params: Promise<{ handle
     }));
   }
 
-  const toStub = (log: (typeof user.logs)[number]): StubData => ({
+  // Year-in-review: pick the most recent year that has shows, by SHOW date
+  // (performance_date), aggregated in the DB rather than in memory.
+  const yearRows = await prisma.$queryRaw<{ year: number; shows: number }[]>`
+    SELECT EXTRACT(YEAR FROM p.performance_date)::int AS year, COUNT(*)::int AS shows
+    FROM "log" l
+    JOIN "performance" p ON p.id = l.performance_id
+    WHERE l.user_id = ${user.id}::uuid
+    GROUP BY year
+    ORDER BY year DESC`;
+  const topYear = yearRows[0]?.year ?? null;
+  const yearStart = topYear != null ? new Date(Date.UTC(topYear, 0, 1)) : null;
+  const yearEnd = topYear != null ? new Date(Date.UTC(topYear, 11, 31, 23, 59, 59)) : null;
+
+  // All log reads are bounded; they run in parallel.
+  const [wallLogs, favoriteLogs, reviewLogs, yearLogs, festivals] = await Promise.all([
+    prisma.log.findMany({
+      where: { userId: user.id },
+      orderBy: { loggedDate: "desc" }, // loggedDate == show date (set from performanceDate)
+      take: WALL_LIMIT,
+      include: logInclude,
+    }),
+    prisma.log.findMany({
+      where: { userId: user.id, isFavorite: true },
+      orderBy: { loggedDate: "desc" },
+      take: 12,
+      include: logInclude,
+    }),
+    prisma.log.findMany({
+      where: { userId: user.id, review: { not: null } },
+      orderBy: { loggedDate: "desc" },
+      take: 6,
+      include: logInclude,
+    }),
+    yearStart && yearEnd
+      ? prisma.log.findMany({
+          where: { userId: user.id, performance: { performanceDate: { gte: yearStart, lte: yearEnd } } },
+          include: { performance: { include: { artist: { select: { name: true } }, event: { select: { venue: { select: { name: true } } } } } } },
+        })
+      : Promise.resolve([]),
+    prisma.festivalAttendance.findMany({
+      where: { userId: user.id },
+      orderBy: { createdAt: "desc" },
+      take: 12,
+      include: {
+        event: {
+          select: {
+            slug: true,
+            name: true,
+            startDate: true,
+            endDate: true,
+            venue: { select: { city: true } },
+            performances: {
+              where: { artist: { imageUrl: { not: null } } },
+              take: 1,
+              select: { artist: { select: { name: true, imageUrl: true } } },
+            },
+          },
+        },
+      },
+    }),
+  ]);
+
+  const toStub = (log: (typeof wallLogs)[number]): StubData => ({
     performanceId: log.performanceId,
     artist: log.performance.artist.name,
     artistImage: log.performance.artist.imageUrl,
     venue: log.performance.event.venue?.name ?? log.performance.event.name ?? "—",
     city: log.performance.event.venue?.city ?? null,
-    date: log.loggedDate,
+    date: log.performance.performanceDate, // the night itself, not when it was logged
     rating: toNumber(log.rating),
     isFavorite: log.isFavorite,
     stubImageUrl: log.stubImageUrl,
   });
 
-  const favorites = user.logs.filter((l) => l.isFavorite);
-  const stubs = user.logs.map(toStub);
+  const stubs = wallLogs.map(toStub);
 
-  // Year in review (most recent year with shows)
-  const years = [...new Set(user.logs.map((l) => yearOf(l.loggedDate)))].sort((a, b) => b - a);
-  const topYear = years[0];
-  const yearLogs = user.logs.filter((l) => yearOf(l.loggedDate) === topYear);
+  // Year-in-review stats, computed over just the top year's logs.
   const artistCounts = new Map<string, number>();
   for (const l of yearLogs) {
     const n = l.performance.artist.name;
@@ -83,8 +145,8 @@ export default async function ProfilePage({ params }: { params: Promise<{ handle
   }
   const topArtist = [...artistCounts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? "—";
   const venuesThisYear = new Set(yearLogs.map((l) => l.performance.event.venue?.name).filter(Boolean)).size;
-  const ratings = yearLogs.map((l) => toNumber(l.rating)).filter((r): r is number => r != null);
-  const avgRating = ratings.length ? (ratings.reduce((a, b) => a + b, 0) / ratings.length).toFixed(1) : "—";
+  const yrRatings = yearLogs.map((l) => toNumber(l.rating)).filter((r): r is number => r != null);
+  const avgRating = yrRatings.length ? (yrRatings.reduce((a, b) => a + b, 0) / yrRatings.length).toFixed(1) : "—";
 
   return (
     <main className="container">
@@ -153,11 +215,11 @@ export default async function ProfilePage({ params }: { params: Promise<{ handle
       )}
 
       {/* Favorites */}
-      {favorites.length > 0 && (
+      {favoriteLogs.length > 0 && (
         <>
           <div className="label">Favorite shows</div>
           <div className="poster-grid">
-            {favorites.map((l) => (
+            {favoriteLogs.map((l) => (
               <Poster
                 key={l.id}
                 href={`/show/${l.performanceId}`}
@@ -173,10 +235,34 @@ export default async function ProfilePage({ params }: { params: Promise<{ handle
         </>
       )}
 
+      {/* Festivals — the trip-level take, distinct from per-set logs */}
+      {festivals.length > 0 && (
+        <>
+          <div className="label">Festivals</div>
+          <div className="poster-grid">
+            {festivals.map((f) => {
+              const img = f.event.performances[0]?.artist.imageUrl ?? null;
+              const year = f.event.startDate.getUTCFullYear();
+              return (
+                <Poster
+                  key={f.id}
+                  href={`/festival/${f.event.slug}`}
+                  name={f.event.name ?? "Festival"}
+                  image={img}
+                  caption={f.event.name ?? "Festival"}
+                  subcaption={`🎪 ${f.event.venue?.city ? `${f.event.venue.city} · ` : ""}${year}`}
+                  rating={toNumber(f.rating)}
+                />
+              );
+            })}
+          </div>
+        </>
+      )}
+
       {/* Stub wall */}
       <div className="label">
         Stub wall
-        {stubs.length > 0 && <Link href={`/u/${user.handle}/wall`}>↗ Share wall</Link>}
+        {user._count.logs > 0 && <Link href={`/u/${user.handle}/wall`}>↗ Share wall</Link>}
       </div>
       {stubs.length === 0 ? (
         <div className="card">
@@ -186,9 +272,17 @@ export default async function ProfilePage({ params }: { params: Promise<{ handle
           </p>
         </div>
       ) : (
-        <div className="stub-grid">
-          {stubs.map((s, i) => <StubCard key={i} stub={s} />)}
-        </div>
+        <>
+          <div className="stub-grid">
+            {stubs.map((s, i) => <StubCard key={i} stub={s} />)}
+          </div>
+          {user._count.logs > WALL_LIMIT && (
+            <p className="muted" style={{ marginTop: 12 }}>
+              Showing the {WALL_LIMIT} most recent of {user._count.logs} shows.{" "}
+              <Link href={`/u/${user.handle}/wall`} style={{ color: "var(--accent)" }}>See the whole wall →</Link>
+            </p>
+          )}
+        </>
       )}
 
       {/* Lists */}
@@ -209,12 +303,12 @@ export default async function ProfilePage({ params }: { params: Promise<{ handle
         </>
       )}
 
-      {/* Recent reviews (was: Notes) — now poster-backed diary cards */}
-      {user.logs.some((l) => l.review) && (
+      {/* Recent reviews — poster-backed diary cards */}
+      {reviewLogs.length > 0 && (
         <>
           <div className="label">Recent reviews</div>
           <div className="note-grid">
-            {user.logs.filter((l) => l.review).slice(0, 6).map((l) => (
+            {reviewLogs.map((l) => (
               <Link key={l.id} href={`/show/${l.performanceId}`} className="note">
                 <div className="note-thumb">
                   <ArtistImage name={l.performance.artist.name} src={l.performance.artist.imageUrl} />
@@ -225,7 +319,7 @@ export default async function ProfilePage({ params }: { params: Promise<{ handle
                     <Stars rating={toNumber(l.rating)} />
                   </div>
                   <div className="faint" style={{ fontSize: 12.5 }}>
-                    {l.performance.event.venue?.name ?? l.performance.event.name} · {formatDate(l.loggedDate)}
+                    {l.performance.event.venue?.name ?? l.performance.event.name} · {formatDate(l.performance.performanceDate)}
                   </div>
                   <p className="note-quote">{l.review}</p>
                 </div>
