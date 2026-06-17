@@ -532,6 +532,7 @@ textarea {
   width: 100%;
 }
 .hero-poster {
+  position: relative;
   width: 132px;
   height: 132px;
   border-radius: 14px;

@@ -76,7 +76,10 @@ export function recencyBucket(d: Date | string): "Today" | "This week" | "This m
 
 export function parseSetlist(raw: unknown): SetlistEntry[] {
   if (!Array.isArray(raw)) return [];
+  // Drop blank entries — setlist.fm leaves empty song slots for tape/segues
+  // and unlisted songs, which otherwise render as numbered gaps.
   return raw.filter(
-    (e): e is SetlistEntry => !!e && typeof (e as SetlistEntry).song === "string"
+    (e): e is SetlistEntry =>
+      !!e && typeof (e as SetlistEntry).song === "string" && (e as SetlistEntry).song.trim() !== ""
   );
 }
