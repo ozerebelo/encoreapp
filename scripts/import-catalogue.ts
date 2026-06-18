@@ -14,7 +14,12 @@ import { fetchMusicEvents, hasTicketmasterKey, festivalKey, type CatalogueEvent 
 import { slugify } from "../src/lib/slug";
 
 const prisma = new PrismaClient();
-const COUNTRIES = ["GB", "US", "IE", "FR", "DE", "NL", "ES", "PT", "IT", "SE", "BE", "DK"];
+// Override with TM_COUNTRIES=GB,US,…  Ticketmaster Discovery covers these markets.
+const DEFAULT_COUNTRIES = [
+  "GB", "US", "IE", "FR", "DE", "NL", "ES", "PT", "IT", "SE", "BE", "DK",
+  "AT", "CH", "PL", "NO", "FI", "CZ", "GR", "HU", "AU", "NZ", "CA", "MX",
+];
+const COUNTRIES = process.env.TM_COUNTRIES?.split(",").map((c) => c.trim()).filter(Boolean) ?? DEFAULT_COUNTRIES;
 const PAGES = Number(process.argv[2]) || 5;
 
 async function chunkCreate<T>(rows: T[], create: (batch: T[]) => Promise<unknown>) {
